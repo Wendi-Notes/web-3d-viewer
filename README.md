@@ -1,3 +1,5 @@
+[English](README.en.md) | 日本語
+
 # Web 3D Viewer
 
 STL / 3MF（3D）と DXF / DWG / SVG（2D）を、**ひとつのビューアーで**サッと開いて見るための Windows 用ローカルツールです。

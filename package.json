@@ -1,0 +1,25 @@
+{
+  "name": "web-3d-viewer",
+  "version": "1.0.0",
+  "private": true,
+  "description": "STL / 3MF / DXF / DWG / SVG を1つで見られるローカルビューアー（右クリックで開く・計測つき）",
+  "license": "GPL-3.0-or-later",
+  "type": "module",
+  "scripts": {
+    "prepare-assets": "node scripts/copy-workers.mjs",
+    "fonts": "node scripts/fetch-fonts.mjs",
+    "dev": "npm run prepare-assets && vite",
+    "build": "npm run prepare-assets && vite build"
+  },
+  "dependencies": {
+    "@mlightcad/cad-simple-viewer": "1.7.8",
+    "@mlightcad/data-model": "1.15.21",
+    "@mlightcad/libredwg-converter": "3.15.21",
+    "@mlightcad/mtext-parser": "1.5.7",
+    "lodash-es": "4.17.21",
+    "three": "^0.186.1"
+  },
+  "devDependencies": {
+    "vite": "^8.3.8"
+  }
+}

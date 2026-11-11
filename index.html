@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Web 3D Viewer</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M12 2.5l8.5 4.9v9.2L12 21.5l-8.5-4.9V7.4z' fill='%231769aa'/%3E%3C/svg%3E">
+</head>
+<body>
+<header id="hdr">
+  <div class="brand">Web 3D Viewer</div>
+  <div class="seg" id="modeSeg">
+    <button data-mode="3d" class="on" data-tip="3Dモデル（STL / 3MF）の表示に切り替え">3D<span class="cnt" id="cnt3d"></span></button>
+    <button data-mode="2d" data-tip="2D図面（DXF / DWG / SVG）の表示に切り替え">2D<span class="cnt" id="cnt2d"></span></button>
+  </div>
+  <div class="tools">
+    <div class="menuwrap">
+      <button class="primary" id="openBtn" data-tip="ファイルやフォルダを開く（Ctrl+O）"><i data-ic="open"></i>開く ▾</button>
+      <div class="menu" id="openMenu">
+        <label class="card" for="file"><i data-ic="file"></i><b>ファイル</b><small>複数選択OK</small></label>
+        <label class="card" for="dir"><i data-ic="folder"></i><b>フォルダ</b><small>中身を一覧表示</small></label>
+      </div>
+    </div>
+    <span class="sep"></span>
+    <button id="fitBtn" class="ic" data-tip="全体表示（F）"><i data-ic="fit"></i></button>
+    <button id="measureBtn" class="ic" data-tip="長さを測る（M）：2点をクリック。円のふちでカーソルが紫になったらクリックで直径。Escで終了"><i data-ic="ruler"></i></button>
+    <button id="clearMeasureBtn" class="ic" data-tip="計測結果をすべて消す"><i data-ic="eraser"></i></button>
+    <select id="layout" class="only3d" data-tip="複数モデルの並べ方">
+      <option value="solo" selected>1つずつ表示</option>
+      <option value="row">横に並べる</option>
+      <option value="stack">重ねて比較</option>
+    </select>
+    <span class="sep"></span>
+    <button id="deepBtn" class="ic" data-tip="表示中のファイルを、チャットやAIに貼れる web3d:// リンクとしてコピー" disabled><i data-ic="link"></i></button>
+    <button id="settingsBtn" class="ic" data-tip="表示設定（枠の色など）"><i data-ic="gear"></i></button>
+  </div>
+</header>
+
+<nav id="tabs"></nav>
+
+<main>
+  <section id="stage">
+    <div id="view3d" class="view"></div>
+    <div id="view2d" class="view hidden"><div id="cad"></div></div>
+    <div id="viewsvg" class="view hidden"><div id="svgPane"></div><svg id="svgOverlay"></svg></div>
+    <div id="labels"></div>
+    <div id="welcome">
+      <div class="box">
+        <i data-ic="cube" class="big"></i>
+        <h3 id="welcomeTitle">STL / 3MF をここにドロップ</h3>
+        <p>ファイルでもフォルダでもOK。3D と 2D は自動で振り分けます</p>
+        <div class="cards">
+          <label class="card" for="file"><b>ファイルを選ぶ</b><small>STL 3MF DXF DWG SVG</small></label>
+          <label class="card" for="dir"><b>フォルダを選ぶ</b><small>中身を一覧表示</small></label>
+        </div>
+      </div>
+    </div>
+    <div class="hint" id="hint"></div>
+    <div id="measureInfo" class="hidden"></div>
+    <div id="coordPanel" class="hidden"></div>
+  </section>
+  <aside id="side">
+    <section id="infoSec">
+      <h2>情報</h2>
+      <dl id="info"><dt>ファイル</dt><dd>—</dd></dl>
+    </section>
+    <section id="layerSec" class="hidden">
+      <h2>レイヤー <span class="h2btns"><button id="layersAllOn" data-tip="すべてのレイヤーを表示">全表示</button></span></h2>
+      <ul id="layers"></ul>
+    </section>
+    <section>
+      <h2>フォルダ内のファイル <span class="h2btns"><button id="loadAll" data-tip="一覧のファイルをすべて開く">すべて開く</button></span></h2>
+      <ul id="folder"><li class="empty">「開く」→「フォルダ」で一覧表示</li></ul>
+    </section>
+    <div class="status" id="status">読み込み待ち</div>
+  </aside>
+</main>
+
+<input id="file" type="file" accept=".stl,.3mf,.dxf,.dwg,.svg" multiple hidden>
+<input id="dir" type="file" webkitdirectory multiple hidden>
+<div id="drop">ここにドロップして開く</div>
+<div id="tip"></div>
+<div id="toast"></div>
+
+<dialog id="settings">
+  <form method="dialog">
+    <h3>表示設定</h3>
+    <p class="note">枠まわりの色を変えられます。背景はそのままです。設定はこのPCに保存されます。</p>
+    <div class="colors" id="colorRows"></div>
+    <div class="dlgbtns">
+      <button type="button" id="resetColors">初期値に戻す</button>
+      <button value="ok" class="primary">閉じる</button>
+    </div>
+  </form>
+</dialog>
+
+<script type="module" src="/src/main.js"></script>
+</body>
+</html>

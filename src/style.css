@@ -1,0 +1,116 @@
+:root{
+  --bg:#eef3f8;          /* 背景（固定）：青みがかった白 */
+  --c-header:#ffffff;    /* 上部バー */
+  --c-tabs:#e4ebf2;      /* タブ帯 */
+  --c-side:#ffffff;      /* 右パネル */
+  --c-accent:#1769aa;    /* アクセント */
+  --c-text:#202124;
+  --line:#d3dbe3;
+  --muted:#5d6670;
+  font-family:"Segoe UI","Meiryo",sans-serif;color:var(--c-text);background:var(--bg);
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;overflow:hidden}
+button,select{font:inherit;font-size:13px;border:1px solid #c7cfd7;border-radius:6px;padding:6px 10px;background:#fff;color:var(--c-text);cursor:pointer}
+button:hover:not(:disabled){border-color:var(--c-accent)}
+button:disabled{opacity:.45;cursor:not-allowed}
+button.primary{background:var(--c-accent);border-color:var(--c-accent);color:#fff}
+button.ic{width:34px;height:34px;padding:0;display:inline-flex;align-items:center;justify-content:center}
+button.ic.on{background:var(--c-accent);border-color:var(--c-accent);color:#fff}
+i[data-ic]{display:inline-flex;width:18px;height:18px}
+i[data-ic] svg{width:100%;height:100%}
+button.primary i[data-ic]{width:16px;height:16px;margin-right:6px}
+.hidden{display:none!important}
+
+header{height:52px;display:flex;align-items:center;gap:14px;padding:0 14px;background:var(--c-header);border-bottom:1px solid var(--line)}
+.brand{font-weight:700;font-size:15px;white-space:nowrap}
+.seg{display:flex;border:1px solid #c7cfd7;border-radius:8px;overflow:hidden}
+.seg button{border:0;border-radius:0;padding:6px 16px;font-weight:600;background:#fff}
+.seg button+button{border-left:1px solid #c7cfd7}
+.seg button.on{background:var(--c-accent);color:#fff}
+.seg .cnt{margin-left:6px;font-size:11px;font-weight:400;opacity:.85}
+.tools{display:flex;align-items:center;gap:6px;flex:1;min-width:0}
+.sep{width:1px;height:24px;background:var(--line);margin:0 4px}
+.menuwrap{position:relative}
+.menu{position:absolute;top:calc(100% + 6px);left:0;z-index:30;display:grid;grid-template-columns:1fr 1fr;gap:8px;width:260px;padding:10px;background:#fff;border:1px solid var(--line);border-radius:10px;box-shadow:0 10px 30px #0f2a4030;opacity:0;pointer-events:none;transform:translateY(-4px);transition:.14s}
+.menu.open{opacity:1;pointer-events:auto;transform:none}
+.card{display:flex;flex-direction:column;align-items:center;gap:4px;padding:12px 6px;border:1px solid #e1e6eb;border-radius:9px;cursor:pointer;text-align:center;background:#fff}
+.card:hover{border-color:var(--c-accent);background:#f3f8fc}
+.card i[data-ic]{width:28px;height:28px;color:var(--c-accent)}
+.card b{font-size:13px}.card small{font-size:11px;color:var(--muted)}
+
+#tabs{height:36px;display:flex;align-items:flex-end;gap:2px;padding:0 8px;background:var(--c-tabs);border-bottom:1px solid var(--line);overflow-x:auto;overflow-y:hidden;scrollbar-width:thin}
+#tabs .tab{display:flex;align-items:center;gap:6px;max-width:220px;min-width:90px;height:30px;padding:0 6px 0 10px;border:1px solid transparent;border-bottom:0;border-radius:7px 7px 0 0;font-size:12.5px;cursor:pointer;color:var(--muted);flex:none}
+#tabs .tab:hover{background:#ffffff80}
+#tabs .tab.on{background:var(--bg);border-color:var(--line);color:var(--c-text);font-weight:600;margin-bottom:-1px;height:31px}
+#tabs .tab .sw{width:9px;height:9px;border-radius:2px;flex:none}
+#tabs .tab .nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#tabs .tab .ext{font-size:10px;padding:1px 4px;border-radius:3px;background:#0000000f;color:var(--muted);font-weight:600}
+#tabs .tab .x{border:0;background:none;width:20px;height:20px;padding:0;border-radius:4px;color:var(--muted);font-size:14px;line-height:1}
+#tabs .tab .x:hover{background:#fde8e8;color:#c0392b}
+#tabs .empty{align-self:center;font-size:12px;color:var(--muted);padding-left:4px}
+
+main{position:absolute;top:89px;left:0;right:0;bottom:0;display:grid;grid-template-columns:minmax(0,1fr) 270px}
+#stage{position:relative;min-width:0;overflow:hidden;background:var(--bg)}
+.view{position:absolute;inset:0}
+.view canvas{display:block}
+#cad{position:absolute;inset:0}
+#viewsvg{overflow:hidden;cursor:grab}
+#svgPane{position:absolute;left:0;top:0;transform-origin:0 0}
+#svgPane img{display:block;user-select:none;-webkit-user-drag:none;pointer-events:none}
+#svgOverlay{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+#labels{position:absolute;inset:0;pointer-events:none;overflow:hidden}
+.mlabel{position:absolute;transform:translate(-50%,-130%);background:#1d2a36e6;color:#fff;font-size:12px;font-weight:600;padding:3px 7px;border-radius:5px;white-space:nowrap;font-variant-numeric:tabular-nums}
+#measureInfo{position:absolute;top:10px;left:50%;transform:translateX(-50%);background:#fffffff2;border:1px solid var(--c-accent);color:var(--c-text);border-radius:8px;padding:6px 12px;font-size:12.5px;box-shadow:0 4px 14px #0f2a4020;pointer-events:none;white-space:nowrap}
+.measuring #view3d,.measuring #viewsvg{cursor:crosshair}
+
+#welcome{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none}
+#welcome .box{pointer-events:auto;width:min(430px,86%);padding:24px 20px;border:2px dashed #b4c3d1;border-radius:16px;background:#ffffffcc;text-align:center}
+#welcome .big{width:44px;height:44px;color:var(--c-accent)}
+#welcome h3{margin:8px 0 4px;font-size:16px}#welcome p{margin:0 0 14px;font-size:12.5px;color:var(--muted)}
+#welcome .cards{display:grid;grid-template-columns:1fr 1fr;gap:8px;max-width:320px;margin:auto}
+.hint{position:absolute;left:12px;bottom:10px;background:#ffffffe6;border-radius:5px;padding:5px 9px;color:var(--muted);font-size:11.5px;pointer-events:none}
+
+aside{background:var(--c-side);border-left:1px solid var(--line);padding:12px;overflow:auto;display:flex;flex-direction:column;gap:14px}
+aside h2{font-size:13px;margin:0 0 6px;display:flex;justify-content:space-between;align-items:center}
+.h2btns button{padding:2px 8px;font-size:11.5px}
+dl{display:grid;grid-template-columns:auto 1fr;gap:3px 10px;margin:0;font-size:12px}
+dt{color:var(--muted)}dd{margin:0;word-break:break-all;font-variant-numeric:tabular-nums}
+ul{list-style:none;margin:0;padding:0;font-size:12.5px}
+#layers{max-height:40vh;overflow:auto}
+#layers li{display:flex;align-items:center;gap:6px;padding:3px 4px;border-bottom:1px solid #eef1f4}
+#layers li .sw{width:11px;height:11px;border-radius:2px;border:1px solid #0002;flex:none}
+#layers li .n{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#layers li input{margin:0}
+#folder li{padding:4px;border-bottom:1px solid #eef1f4;cursor:pointer;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#folder li:hover{background:#eef5fb}#folder li.on{color:var(--c-accent);font-weight:600}
+#folder li .k{font-size:10px;color:var(--muted);margin-right:5px;font-weight:600}
+.empty{color:#8a9198;font-size:12px}
+.status{margin-top:auto;font-size:12px;color:var(--muted);border-top:1px solid var(--line);padding-top:8px}
+
+#drop{position:fixed;inset:0;background:#1769aa22;border:4px dashed var(--c-accent);display:none;align-items:center;justify-content:center;font-size:22px;color:var(--c-accent);font-weight:700;z-index:50;pointer-events:none}
+body.dragging #drop{display:flex}
+#tip{position:fixed;z-index:60;max-width:320px;background:#1f2933;color:#fff;font-size:12px;line-height:1.45;padding:5px 9px;border-radius:5px;pointer-events:none;opacity:0;transition:opacity .12s;word-break:break-all}
+#tip.show{opacity:1}
+#toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%) translateY(16px);background:#202124;color:#fff;font-size:13px;padding:8px 14px;border-radius:8px;opacity:0;transition:.2s;pointer-events:none;z-index:70}
+#toast.show{opacity:1;transform:translateX(-50%)}
+
+dialog{border:1px solid var(--line);border-radius:12px;padding:18px 20px;width:360px;box-shadow:0 20px 50px #0f2a4040}
+dialog h3{margin:0 0 4px;font-size:16px}
+dialog .note{font-size:12px;color:var(--muted);margin:0 0 12px}
+.colors{display:grid;grid-template-columns:1fr auto;gap:8px 12px;align-items:center;font-size:13px}
+.colors input{width:46px;height:28px;padding:0;border:1px solid #c7cfd7;border-radius:5px;background:none;cursor:pointer}
+.dlgbtns{display:flex;justify-content:space-between;margin-top:16px}
+
+/* mlightcad の内蔵UIを隠す（表示専用） */
+#cad .ml-notification-center,#cad [class*="ml-command-line"],#cad [class*="ribbon"],#cad [class*="language"]{display:none!important}
+
+#coordPanel{position:absolute;top:50px;left:50%;transform:translateX(-50%);display:flex;gap:10px;pointer-events:none}
+#coordPanel .cbox{background:#fffffff2;border:1px solid var(--line);border-radius:8px;padding:6px 10px;font-size:12px;box-shadow:0 4px 14px #0f2a4018;display:grid;grid-template-columns:auto repeat(3,auto);gap:2px 10px;align-items:center;font-variant-numeric:tabular-nums;white-space:nowrap}
+#coordPanel .cbox.live{border-color:var(--c-accent)}
+#coordPanel b{font-size:11px;color:var(--muted);font-weight:600}
+#coordPanel .cx{color:#c92a2a}#coordPanel .cy{color:#2b8a3e}#coordPanel .cz{color:#1971c2}
+#coordPanel .na{grid-column:2/5;color:#8a9198}
+#coordPanel .dl{font-style:normal;font-size:11px;color:var(--muted);text-align:right}
+#coordPanel .eq{background:#d3f9d8;border-radius:3px;padding:0 3px;font-weight:700}
+#coordPanel em{grid-column:1/5;font-style:normal;font-size:11px;color:var(--c-accent);font-weight:600}

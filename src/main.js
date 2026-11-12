@@ -185,6 +185,32 @@ function findCircles(mesh) {
     for (const s of segs) segCircle[s] = circle
   }
   mesh.userData.segCircle = segCircle
+  const adj = pts.map(() => [])
+  for (let s = 0; s < nSeg; s++) { adj[segV[s * 2]].push(s); adj[segV[s * 2 + 1]].push(s) }
+  mesh.userData.topo = { segV, pts, adj }
+  mesh.userData.circles = [...new Set(segCircle.filter(Boolean))]
+}
+
+function rimThickness(mesh, me, pWorld) {
+  const e = mesh.userData.edges, sc = mesh.userData.segCircle; if (!e) return null
+  const inv = mesh.matrixWorld.clone().invert(), p = pWorld.clone().applyMatrix4(inv)
+  const n = me.normal, radial = p.clone().sub(me.center); radial.addScaledVector(n, -radial.dot(n))
+  if (radial.lengthSq() < 1e-9) return null
+  radial.normalize()
+  const tolPlane = Math.max(0.2, me.r * 0.01), cosMax = Math.cos(THREE.MathUtils.degToRad(20))
+  const a = new THREE.Vector3(), b = new THREE.Vector3(), q = new THREE.Vector3(), seg = new THREE.Line3(), d = new THREE.Vector3()
+  let best = null, bd = Infinity
+  for (let i = 0, s = 0; i < e.length; i += 6, s++) {
+    if (sc[s] === me) continue
+    a.set(e[i], e[i + 1], e[i + 2]); b.set(e[i + 3], e[i + 4], e[i + 5])
+    seg.set(a, b); seg.closestPointToPoint(p, true, q)
+    d.subVectors(q, p); const len = d.length()
+    if (len < 1e-4 || len >= bd || Math.abs(d.dot(n)) > tolPlane) continue
+    if (Math.abs(d.dot(radial)) / len < cosMax) continue          // 半径方向（内向き・外向き）だけ
+    bd = len; best = q.clone()
+  }
+  if (!best) return null
+  return { a: pWorld.clone(), b: best.applyMatrix4(mesh.matrixWorld), d: bd }
 }
 
 // ---------- 3D 計測 ----------
@@ -206,31 +232,58 @@ function pick3(ev) {
   const targets = tabs['3d'].filter(t => t.holder.visible).map(t => t.holder)
   const hit = ray.intersectObjects(targets, true).find(h => h.object.isMesh)
   if (!hit) return null
-  let p = hit.point.clone(), snap = 'face', circle = null
+  let p = hit.point.clone(), snap = 'face', circle = null, edgeSeg = -1
   const tol = pixelWorld(hit.point) * 14
   const e = hit.object.userData.edges
   if (e) {
     // 角（辺の端点）を最優先、次に辺の上の一番近い点
     const mw = hit.object.matrixWorld, a = new THREE.Vector3(), b = new THREE.Vector3(), q = new THREE.Vector3(), seg = new THREE.Line3()
-    let bestV = tol, bestE = tol * .8, vtx = null, edg = null, segV = -1, segE = -1
+    let bestV = tol, bestE = tol * .8, vtx = null, edg = null, segV = -1, segE = -1, vEnd = 0
     for (let i = 0; i < e.length; i += 6) {
       a.set(e[i], e[i + 1], e[i + 2]).applyMatrix4(mw)
       b.set(e[i + 3], e[i + 4], e[i + 5]).applyMatrix4(mw)
       const da = a.distanceTo(hit.point), db = b.distanceTo(hit.point)
-      if (da < bestV) { bestV = da; vtx = a.clone(); segV = i / 6 }
-      if (db < bestV) { bestV = db; vtx = b.clone(); segV = i / 6 }
+      if (da < bestV) { bestV = da; vtx = a.clone(); segV = i / 6; vEnd = 0 }
+      if (db < bestV) { bestV = db; vtx = b.clone(); segV = i / 6; vEnd = 1 }
       if (!vtx) {
         seg.set(a, b); seg.closestPointToPoint(hit.point, true, q)
         const dq = q.distanceTo(hit.point); if (dq < bestE) { bestE = dq; edg = q.clone(); segE = i / 6 }
       }
     }
     if (vtx) { p = vtx; snap = 'vertex' } else if (edg) { p = edg; snap = 'edge' }
+    edgeSeg = edg ? segE : -1
+    // 曲線の途中の点（前後の辺がほぼ一直線）は「角」ではなく「辺」として扱う
+    const topo = hit.object.userData.topo
+    if (vtx && topo) {
+      const v = topo.segV[segV * 2 + vEnd], P = topo.pts[v], ds = topo.adj[v].map(s => {
+        const o = topo.segV[s * 2] === v ? topo.segV[s * 2 + 1] : topo.segV[s * 2]; return topo.pts[o].clone().sub(P).normalize()
+      })
+      let smooth = false
+      for (let i = 0; i < ds.length && !smooth; i++) for (let j = i + 1; j < ds.length; j++) if (ds[i].dot(ds[j]) < -Math.cos(THREE.MathUtils.degToRad(35))) { smooth = true; break }
+      if (smooth && ds.length === 2) { snap = 'edge'; edgeSeg = segV }
+    }
     const sc = hit.object.userData.segCircle, si = vtx ? segV : edg ? segE : -1
-    if (sc && si >= 0 && sc[si]) circle = worldCircle(sc[si], hit.object.matrixWorld)
+    if (sc && si >= 0 && sc[si]) {
+      circle = worldCircle(sc[si], hit.object.matrixWorld)
+      // 同じ面・同じ中心の円がもう1つあれば（パイプの外周と内周）肉厚を出す
+      const me = sc[si], tolC = Math.max(0.3, me.r * 0.01)
+      let mate = null
+      for (const o of hit.object.userData.circles || []) {
+        if (o === me || Math.abs(o.r - me.r) < 0.05) continue
+        if (Math.abs(Math.abs(o.normal.dot(me.normal)) - 1) > 1e-3) continue
+        const d = o.center.clone().sub(me.center)
+        if (Math.abs(d.dot(me.normal)) > tolC) continue                      // 同じ高さ（面）
+        if (d.addScaledVector(me.normal, -d.dot(me.normal)).length() > tolC) continue  // 同じ中心
+        if (!mate || Math.abs(o.r - me.r) < Math.abs(mate.r - me.r)) mate = o
+      }
+      // 縁の厚み：ふちの点から、同じ面の中で半径方向にある一番近い別の辺まで（内側・外側どちらでも、真円でなくてもOK）
+      const th = rimThickness(hit.object, me, p)
+      if (th) circle.thick = th
+    }
   }
   const snapped = snap
   const tab = tabs['3d'].find(t => { let o = hit.object; while (o) { if (o === t.holder) return true; o = o.parent } return false })
-  return { p, snapped, tab, circle }
+  return { p, snapped, tab, circle, edgeSeg, mesh: hit.object }
 }
 function makeDot(p) { const d = new THREE.Mesh(hoverDot.geometry, dotMat); d.renderOrder = 998; d.position.copy(p); d.userData.measureDot = true; scene.add(d); return d }
 function addLabel(text) { const el = document.createElement('div'); el.className = 'mlabel'; el.textContent = text; $('labels').append(el); return el }
@@ -255,18 +308,32 @@ function ringGeometry(c) {
   return new THREE.BufferGeometry().setFromPoints(pts)
 }
 const previewRing = new THREE.LineLoop(new THREE.BufferGeometry(), circleMat); previewRing.renderOrder = 999; previewRing.visible = false; scene.add(previewRing)
-function showPreviewRing(c) {
-  if (!c) { previewRing.visible = false; return }
-  if (previewRing.userData.c !== c.center.toArray().join() + c.r) { previewRing.geometry.dispose(); previewRing.geometry = ringGeometry(c); previewRing.userData.c = c.center.toArray().join() + c.r }
-  previewRing.visible = true
+const previewRing2 = new THREE.LineLoop(new THREE.BufferGeometry(), circleMat); previewRing2.renderOrder = 999; previewRing2.visible = false; scene.add(previewRing2)
+function setRing(ring, c) {
+  if (!c) { ring.visible = false; return }
+  const k = c.center.toArray().join() + c.r
+  if (ring.userData.c !== k) { ring.geometry.dispose(); ring.geometry = ringGeometry(c); ring.userData.c = k }
+  ring.visible = true
 }
+function showPreviewRing(c) { setRing(previewRing, c); setRing(previewRing2, null) }
 const circleText = c => `Φ${fmt(c.r * 2)} mm`
+const thickMat = new THREE.LineBasicMaterial({ color: 0x0c8599, depthTest: false })
+const previewThick = new THREE.Line(new THREE.BufferGeometry(), thickMat); previewThick.renderOrder = 999; previewThick.visible = false; scene.add(previewThick)
+function showPreviewThick(th) { if (!th) { previewThick.visible = false; return } previewThick.geometry.setFromPoints([th.a, th.b]); previewThick.visible = true }
 function pinCircle(c, tab, extraDots = []) {
   const line = new THREE.LineLoop(ringGeometry(c), circleMat); line.renderOrder = 997; scene.add(line)
   const label = addLabel(circleText(c)); label.style.background = '#5b2c83e6'
-  measures3.push({ tab, a: c.center, b: c.center, line, dots: [makeDot(c.center), ...extraDots], label })
-  showMeasureInfo(`直径 Φ${fmt(c.r * 2)} mm　（半径 R${fmt(c.r)} mm）`)
-  setStatus('計測: ' + circleText(c))
+  const dots = [makeDot(c.center), ...extraDots]
+  measures3.push({ tab, a: c.center, b: c.center, line, dots, label })
+  let extra = ''
+  if (c.thick) {
+    const tl = new THREE.Line(new THREE.BufferGeometry().setFromPoints([c.thick.a, c.thick.b]), thickMat); tl.renderOrder = 997; scene.add(tl)
+    const tlab = addLabel('厚み ' + fmt(c.thick.d) + ' mm'); tlab.style.background = '#0b6f80e6'
+    measures3.push({ tab, a: c.thick.a, b: c.thick.b, line: tl, dots: [makeDot(c.thick.a), makeDot(c.thick.b)], label: tlab })
+    extra = `　／　縁の厚み ${fmt(c.thick.d)} mm`
+  }
+  showMeasureInfo(`直径 Φ${fmt(c.r * 2)} mm　（半径 R${fmt(c.r)} mm）${extra}`)
+  setStatus('計測: ' + circleText(c) + extra)
 }
 let measureKind = 'dist'   // 'dist' | 'circle3'
 let pend3pts = []
@@ -282,20 +349,52 @@ function onClick3(ev) {
   }
   // 円のふち（紫）で1点目なら、その円の直径を確定
   if (!pending3 && r.circle) { pinCircle(r.circle, r.tab); return }
-  if (!pending3) { pending3 = { point: r.p, dot: makeDot(r.p), tab: r.tab }; showMeasureInfo('2点目をクリック　Shiftを押しながらで X / Y / Z 方向にまっすぐ　Escで中止'); updateCoords(r.p); return }
+  if (!pending3) { pending3 = { point: r.p, dot: makeDot(r.p), tab: r.tab }; showMeasureInfo('2点目をクリック　反対側の辺に乗せると最短距離（厚み）／Shiftで X・Y・Z 方向にまっすぐ　Escで中止'); updateCoords(r.p); return }
   const a = pending3.point, lk = targetOf(r, ev.shiftKey), b = lk.p
   const geo = new THREE.BufferGeometry().setFromPoints([a, b]); const line = new THREE.Line(geo, lineMat); line.renderOrder = 997; scene.add(line)
   const dist = a.distanceTo(b)
-  const label = addLabel(fmt(dist) + ' mm' + (lk.axis ? '（' + lk.axis + '方向）' : ''))
+  const label = addLabel((lk.thick ? '厚み ' : '') + fmt(dist) + ' mm' + (lk.axis ? '（' + lk.axis + '方向）' : ''))
   const m = { tab: pending3.tab, a, b, line, dots: [pending3.dot, makeDot(b)], label }
   measures3.push(m); pending3 = null; rubber.visible = false
-  showMeasureInfo(`距離 ${fmt(dist)} mm${lk.axis ? '（' + lk.axis + '方向）' : ''}　続けて1点目をクリック`)
+  showMeasureInfo(`${lk.thick ? '厚み' : '距離'} ${fmt(dist)} mm${lk.axis ? '（' + lk.axis + '方向）' : ''}　続けて1点目をクリック`)
   setStatus('計測: ' + fmt(dist) + ' mm')
   updateCoords(b)
 }
+// ---------- 厚み：2点目で辺を指すと、その辺（なめらかにつながる範囲）までの最短距離 ----------
+function smoothChain(mesh, seg0) {
+  const { segV, pts, adj } = mesh.userData.topo, out = [seg0], seen = new Set([seg0])
+  const dir = (s, from) => { const a = segV[s * 2], b = segV[s * 2 + 1]; return from === a ? pts[b].clone().sub(pts[a]).normalize() : pts[a].clone().sub(pts[b]).normalize() }
+  for (const startEnd of [segV[seg0 * 2 + 1], segV[seg0 * 2]]) {
+    let cur = seg0, v = startEnd
+    let d = dir(cur, segV[cur * 2] === v ? segV[cur * 2 + 1] : segV[cur * 2])  // v に向かう向き
+    for (let n = 0; n < 20000; n++) {
+      let best = -1, bestCos = Math.cos(THREE.MathUtils.degToRad(35))
+      for (const s of adj[v]) { if (seen.has(s)) continue; const c = dir(s, v).dot(d); if (c > bestCos) { bestCos = c; best = s } }
+      if (best < 0) break
+      seen.add(best); out.push(best)
+      const nd = dir(best, v); v = segV[best * 2] === v ? segV[best * 2 + 1] : segV[best * 2]; d = nd
+    }
+  }
+  return out
+}
+function edgeThicknessTarget(r) {
+  if (!pending3 || !r || r.edgeSeg < 0 || !r.mesh?.userData.topo) return null
+  const mesh = r.mesh, { segV, pts } = mesh.userData.topo
+  const inv = mesh.matrixWorld.clone().invert(), p1 = pending3.point.clone().applyMatrix4(inv)
+  const seg = new THREE.Line3(), q = new THREE.Vector3()
+  let best = null, bd = Infinity
+  for (const s of smoothChain(mesh, r.edgeSeg)) {
+    seg.set(pts[segV[s * 2]], pts[segV[s * 2 + 1]]); seg.closestPointToPoint(p1, true, q)
+    const d = q.distanceTo(p1); if (d < bd) { bd = d; best = q.clone() }
+  }
+  if (!best || bd < 1e-4) return null   // 1点目と同じ辺なら通常の計測
+  return best.applyMatrix4(mesh.matrixWorld)
+}
+
 // ---------- 水平・垂直ロック（Shift）と座標表示 ----------
 const AXES = [['X', new THREE.Vector3(1, 0, 0), 0xe03131], ['Y', new THREE.Vector3(0, 1, 0), 0x2f9e44], ['Z', new THREE.Vector3(0, 0, 1), 0x1c7ed6]]
 function targetOf(r, shift) {
+  if (pending3 && !shift && measureKind === 'dist') { const tp = edgeThicknessTarget(r); if (tp) return { p: tp, axis: null, thick: true } }
   if (!pending3 || !shift) return { p: r.p, axis: null }
   const a = pending3.point, d = r.p.clone().sub(a)
   let best = AXES[0]; for (const ax of AXES) if (Math.abs(d.dot(ax[1])) > Math.abs(d.dot(best[1]))) best = ax
@@ -324,16 +423,17 @@ function onMove3(e) {
   if (!measuring || mode !== '3d') { hoverDot.visible = false; rubber.visible = false; return }
   const r = pick3(e); hoverDot.visible = !!r
   const showCircle = r && r.circle && measureKind === 'dist' && !pending3
-  showPreviewRing(showCircle ? r.circle : null)
+  showPreviewRing(showCircle ? r.circle : null); showPreviewThick(showCircle ? r.circle.thick : null)
   if (!r) { rubber.visible = false; return }
   const t = targetOf(r, e.shiftKey)
   hoverDot.position.copy(t.p)
-  hoverDot.material.color.set(t.axis ? t.color : showCircle ? 0x8e44ad : r.snapped === 'vertex' ? 0x12a150 : r.snapped === 'edge' ? 0x1c7ed6 : 0xff5a1f)
+  hoverDot.material.color.set(t.thick ? 0x0c8599 : t.axis ? t.color : showCircle ? 0x8e44ad : r.snapped === 'vertex' ? 0x12a150 : r.snapped === 'edge' ? 0x1c7ed6 : 0xff5a1f)
   if (pending3 && measureKind === 'dist') {
-    rubber.geometry.setFromPoints([pending3.point, t.p]); rubber.material.color.set(t.axis ? t.color : 0xd9480f); rubber.visible = true
-    showMeasureInfo(`距離 ${fmt(pending3.point.distanceTo(t.p))} mm　（Shiftで X / Y / Z 方向にロック）`)
+    rubber.geometry.setFromPoints([pending3.point, t.p]); rubber.material.color.set(t.thick ? 0x0c8599 : t.axis ? t.color : 0xd9480f); rubber.visible = true
+    showMeasureInfo(t.thick ? `厚み ${fmt(pending3.point.distanceTo(t.p))} mm　（この辺までの最短距離）` : `距離 ${fmt(pending3.point.distanceTo(t.p))} mm　（辺に乗せると最短距離＝厚み／Shiftで X・Y・Z ロック）`)
   } else rubber.visible = false
-  if (showCircle) showMeasureInfo(`${circleText(r.circle)}　（クリックで確定）`)
+  if (!pending3 && !showCircle && measureKind === 'dist') showMeasureInfo('1点目をクリック（緑＝角、青＝辺、紫＝円のふち→クリックで直径と縁の厚み）　Escで終了')
+  if (showCircle) showMeasureInfo(`${circleText(r.circle)}${r.circle.thick ? '　／　縁の厚み ' + fmt(r.circle.thick.d) + ' mm' : ''}　（クリックで確定）`)
   updateCoords(t.p, t.axis)
 }
 addEventListener('keydown', e => { if (e.key === 'Shift' && lastMove) onMove3({ clientX: lastMove.clientX, clientY: lastMove.clientY, shiftKey: true }) })
@@ -352,7 +452,7 @@ function update3Overlays() {
   hoverDot.scale.setScalar(s)
   for (const m of measures3) {
     const vis = mode === '3d' && m.tab?.holder.visible !== false
-    m.line.visible = vis; for (const d of m.dots) { d.visible = vis; d.scale.setScalar(s) }
+    m.line.visible = vis; for (const d of m.dots) { d.visible = vis; if (d.userData.measureDot) d.scale.setScalar(s) }
     const mid = m.a.clone().add(m.b).multiplyScalar(.5).project(camera)
     const on = vis && mid.z < 1
     m.label.style.display = on ? '' : 'none'
@@ -655,7 +755,7 @@ function showMeasureInfo(t) { const el = $('measureInfo'); el.textContent = t; e
 function startMeasure() {
   const t = active[mode]; if (!t) { toast('先にファイルを開いてください'); return }
   measuring = true; $('measureBtn').classList.add('on'); document.body.classList.add('measuring')
-  if (mode === '3d') { controls.enabled = true; showMeasureInfo(measureKind === 'circle3' ? '円のふちを3点クリック　Escで終了' : '1点目をクリック（緑＝角、青＝辺、紫＝円のふち→クリックで直径）　Escで終了'); updateCoords(null) }
+  if (mode === '3d') { controls.enabled = true; showMeasureInfo(measureKind === 'circle3' ? '円のふちを3点クリック　Escで終了' : '1点目をクリック（緑＝角、青＝辺、紫＝円のふち→クリックで直径と縁の厚み）　Escで終了'); updateCoords(null) }
   else if (t.type === 'svg') { svgPending = null; showMeasureInfo('1点目をクリック　Escで終了') }
   else { showMeasureInfo('2点をクリックすると長さが出ます（線の端点・中点に吸着）　Escで終了'); try { cad.sendStringToExecute('measuredistance') } catch (e) { console.error(e) } }
 }
@@ -667,7 +767,7 @@ function stopMeasure() {
   $('measureInfo').classList.add('hidden'); hoverDot.visible = false
   if (pending3) { scene.remove(pending3.dot); pending3 = null }
   for (const x of pend3pts) scene.remove(x.dot); pend3pts = []; previewRing.visible = false
-  rubber.visible = false; $('coordPanel').classList.add('hidden')
+  rubber.visible = false; previewThick.visible = false; $('coordPanel').classList.add('hidden')
   svgPending = null; svgHover = null
   const t = active['2d']; if (t?.type === 'svg') drawSvgOverlay(t)
 }

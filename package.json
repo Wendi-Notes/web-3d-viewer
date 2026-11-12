@@ -1,6 +1,6 @@
 {
   "name": "web-3d-viewer",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "private": true,
   "description": "STL / 3MF / DXF / DWG / SVG を1つで見られるローカルビューアー（右クリックで開く・計測つき）",
   "license": "GPL-3.0-or-later",

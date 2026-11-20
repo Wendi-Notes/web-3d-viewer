@@ -34,10 +34,19 @@ The launcher uses only the Python standard library. It does not use `ctypes`, wh
 
 - Windows 10 / 11
 - [Python 3](https://www.python.org/) (the python.org distribution, with `pythonw.exe` available)
-- [Node.js](https://nodejs.org/) (only needed to build the app)
+- [Node.js](https://nodejs.org/) (only needed to build from source; not needed for the ZIP)
 - A browser such as Edge or Chrome
 
-## Installation
+## Installation (easy: ZIP)
+
+1. Download `Web_3D_Viewer-vX.Y.Z.zip` from [Releases](https://github.com/Wendi-Notes/web-3d-viewer/releases) and extract it
+2. Move the `Web_3D_Viewer` folder to where you want to keep it (e.g. `C:\Web_3D_Viewer`).
+   Registration uses that location, so **move it first**. If you move it later, register again
+3. **Double-click `登録.pyw`** (see registration below)
+
+The ZIP does not bundle the CAD fonts, so DXF / DWG text fonts are loaded from the internet (jsDelivr) when needed.
+
+## Installation (build from source)
 
 ```bat
 git clone https://github.com/Wendi-Notes/web-3d-viewer.git C:\Web_3D_Viewer

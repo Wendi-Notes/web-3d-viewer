@@ -1,0 +1,49 @@
+# タグ（v1.2.0 など）を push すると、ビルド済みの ZIP を作って Releases に置く。
+# 既にあるタグで作り直したい時は、Actions タブ →「Release ZIP」→「Run workflow」でタグ名を入れる。
+name: Release ZIP
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'リリースするタグ（例: v1.1.0）'
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    env:
+      TAG: ${{ github.event.inputs.tag || github.ref_name }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TAG }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+      # フォント（npm run fonts）は再配布できないものが含まれるので同梱しない。文字は実行時に jsDelivr から読む
+      - run: npm run build
+
+      - name: Make ZIP
+        shell: pwsh
+        run: |
+          $dir = "Web_3D_Viewer"
+          New-Item -ItemType Directory $dir | Out-Null
+          Copy-Item -Recurse app "$dir/app"
+          Copy-Item launcher.pyw, "登録.pyw", "登録解除.pyw", LICENSE, THIRD_PARTY.md, README.md, README.en.md $dir
+          Compress-Archive -Path $dir -DestinationPath "Web_3D_Viewer-$env:TAG.zip"
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ env.TAG }}
+          files: Web_3D_Viewer-${{ env.TAG }}.zip
+          generate_release_notes: true

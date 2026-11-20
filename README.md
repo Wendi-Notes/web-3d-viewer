@@ -34,10 +34,19 @@ Windows 11 の **スマートアプリコントロール（SAC）** がオンだ
 
 - Windows 10 / 11
 - [Python 3](https://www.python.org/)（python.org 版。`pythonw.exe` が使えること）
-- [Node.js](https://nodejs.org/)（組み立てのときだけ）
+- [Node.js](https://nodejs.org/)（ソースから組み立てるときだけ。ZIP 版では不要）
 - Edge / Chrome などのブラウザ
 
-## インストール
+## インストール（かんたん：ZIP 版）
+
+1. [Releases](https://github.com/Wendi-Notes/web-3d-viewer/releases) から `Web_3D_Viewer-vX.Y.Z.zip` をダウンロードして展開します
+2. 中の `Web_3D_Viewer` フォルダを、置いておきたい場所（例：`C:\Web_3D_Viewer`）へ移します
+   （登録はそのフォルダの場所で行うので、**移してから**次へ進んでください。後で動かした場合は登録し直します）
+3. **`登録.pyw` をダブルクリック**します（下の「登録」と同じ）
+
+ZIP 版は DXF / DWG の文字用フォントを同梱していないため、文字の表示時にインターネット（jsDelivr）から読み込みます。
+
+## インストール（ソースから組み立てる）
 
 ```bat
 git clone https://github.com/Wendi-Notes/web-3d-viewer.git C:\Web_3D_Viewer
